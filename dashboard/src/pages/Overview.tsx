@@ -1,35 +1,41 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Cpu, Database, HardDrive, Network } from 'lucide-react';
 import MetricCard from '../components/MetricCard';
 import TimeSeriesChart from '../components/TimeSeriesChart';
-import { generateMockMetrics, mockHosts } from '../mocks/metrics';
-import type { HostMetrics } from '../types/metrics';
+import { useMetrics } from '../hooks/useMetrics';
+import { HostMetrics } from '../types/metrics';
+import { mockHosts } from '../mocks/metrics';
 
 const Overview: React.FC = () => {
   const navigate = useNavigate();
+  const { metrics: rawMetrics } = useMetrics();
   const [metrics, setMetrics] = useState<HostMetrics[]>([]);
 
   useEffect(() => {
-    // Simulate fetching data for all hosts
-    const data = mockHosts.map(host => generateMockMetrics(host));
-    setMetrics(data);
+    if (Array.isArray(rawMetrics)) {
+      setMetrics(rawMetrics);
+    } else if (rawMetrics === null) {
+      // Initialize with mock if null
+      const initial = mockHosts.map(h => ({
+        hostname: h,
+        ip: '192.168.1.1',
+        status: 'online',
+        cpu: { usage: 0, cores: [], history: [] },
+        memory: { total: 16, used: 0, free: 0, cached: 0, history: [] },
+        disk: { total: 100, used: 0, free: 0, io_read: 0, io_write: 0, history: [] },
+        network: { inbound: 0, outbound: 0, history_in: [], history_out: [] },
+        load: { avg1: 0, avg5: 0, avg15: 0, history: [] },
+        uptime: 0
+      } as unknown as HostMetrics));
+      setMetrics(initial);
+    }
+  }, [rawMetrics]);
 
-    const interval = setInterval(() => {
-      setMetrics(prev => prev.map(m => ({
-        ...m,
-        cpu: { ...m.cpu, usage: Math.floor(Math.random() * 100) },
-        memory: { ...m.memory, used: m.memory.used + (Math.random() - 0.5) * 100 * 1024 * 1024 }
-      })));
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const totalCpuUsage = metrics.reduce((acc, m) => acc + m.cpu.usage, 0) / (metrics.length || 1);
+  const totalCpuUsage = metrics.length > 0 ? metrics.reduce((acc, m) => acc + m.cpu.usage, 0) / metrics.length : 0;
   const totalMemUsed = metrics.reduce((acc, m) => acc + m.memory.used, 0);
   const totalMemTotal = metrics.reduce((acc, m) => acc + m.memory.total, 0);
-  const memPercent = (totalMemUsed / totalMemTotal) * 100;
+  const memPercent = totalMemTotal > 0 ? (totalMemUsed / totalMemTotal) * 100 : 0;
 
   const chartData = {
     labels: Array.from({ length: 20 }).map((_, i) => `${i}s`),

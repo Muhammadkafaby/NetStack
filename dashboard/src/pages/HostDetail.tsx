@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Cpu, Database, HardDrive, Network, Info } from 'lucide-react';
-import { generateMockMetrics } from '../mocks/metrics';
-import type { HostMetrics } from '../types/metrics';
+import { useMetrics } from '../hooks/useMetrics';
+import { HostMetrics } from '../types/metrics';
 import TimeSeriesChart from '../components/TimeSeriesChart';
 import GaugeChart from '../components/GaugeChart';
 import StatusBadge from '../components/StatusBadge';
@@ -10,34 +10,16 @@ import StatusBadge from '../components/StatusBadge';
 const HostDetail: React.FC = () => {
   const { hostname } = useParams<{ hostname: string }>();
   const navigate = useNavigate();
-  const [metrics, setMetrics] = useState<HostMetrics | null>(null);
+  const { metrics: rawMetrics } = useMetrics(hostname);
+  const metrics = rawMetrics as HostMetrics | null;
 
-  useEffect(() => {
-    if (hostname) {
-      setMetrics(generateMockMetrics(hostname));
-      const interval = setInterval(() => {
-        setMetrics(prev => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            cpu: { 
-              ...prev.cpu, 
-              usage: Math.floor(Math.random() * 100),
-              history: [...prev.cpu.history.slice(1), { timestamp: Date.now(), value: Math.floor(Math.random() * 100) }]
-            },
-            memory: { 
-              ...prev.memory, 
-              used: prev.memory.used + (Math.random() - 0.5) * 50 * 1024 * 1024,
-              history: [...prev.memory.history.slice(1), { timestamp: Date.now(), value: Math.floor(Math.random() * 100) }]
-            }
-          };
-        });
-      }, 1000);
-      return () => clearInterval(interval);
-    }
-  }, [hostname]);
-
-  if (!metrics) return <div>Loading...</div>;
+  if (!metrics) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-pulse text-muted-foreground">Connecting to host stream...</div>
+      </div>
+    );
+  }
 
   const cpuChartData = {
     labels: metrics.cpu.history.map(h => new Date(h.timestamp).toLocaleTimeString()),
