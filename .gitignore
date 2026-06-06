@@ -22,4 +22,4 @@ agent/visimon.yml
 *.log
 
 # Environment
-.env
+.envvisimon-server
