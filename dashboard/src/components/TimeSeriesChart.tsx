@@ -9,7 +9,7 @@ import {
   Tooltip,
   Legend,
   Filler,
-  ChartOptions,
+  type ChartOptions,
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 

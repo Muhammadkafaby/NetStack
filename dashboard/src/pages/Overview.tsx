@@ -4,7 +4,7 @@ import { Cpu, Database, HardDrive, Network } from 'lucide-react';
 import MetricCard from '../components/MetricCard';
 import TimeSeriesChart from '../components/TimeSeriesChart';
 import { generateMockMetrics, mockHosts } from '../mocks/metrics';
-import { HostMetrics } from '../types/metrics';
+import type { HostMetrics } from '../types/metrics';
 
 const Overview: React.FC = () => {
   const navigate = useNavigate();

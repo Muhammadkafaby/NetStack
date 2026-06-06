@@ -1,4 +1,4 @@
-import { HostMetrics } from '../types/metrics';
+import type { HostMetrics } from '../types/metrics';
 
 const generateHistory = (count: number, min: number, max: number) => {
   const now = Date.now();

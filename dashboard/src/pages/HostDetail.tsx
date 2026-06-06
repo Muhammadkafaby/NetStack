@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Cpu, Database, HardDrive, Network, Clock, Info } from 'lucide-react';
+import { ArrowLeft, Cpu, Database, HardDrive, Network, Info } from 'lucide-react';
 import { generateMockMetrics } from '../mocks/metrics';
-import { HostMetrics } from '../types/metrics';
+import type { HostMetrics } from '../types/metrics';
 import TimeSeriesChart from '../components/TimeSeriesChart';
 import GaugeChart from '../components/GaugeChart';
 import StatusBadge from '../components/StatusBadge';
