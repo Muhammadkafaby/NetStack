@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Cpu, Database, HardDrive, Network, Zap } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Cpu, Database, HardDrive, Network } from 'lucide-react';
 import MetricCard from '../components/MetricCard';
 import TimeSeriesChart from '../components/TimeSeriesChart';
-import StatusBadge from '../components/StatusBadge';
 import { generateMockMetrics, mockHosts } from '../mocks/metrics';
 import { HostMetrics } from '../types/metrics';
 
 const Overview: React.FC = () => {
+  const navigate = useNavigate();
   const [metrics, setMetrics] = useState<HostMetrics[]>([]);
 
   useEffect(() => {
@@ -100,7 +101,11 @@ const Overview: React.FC = () => {
           <h3 className="font-bold mb-6">Active Hosts</h3>
           <div className="space-y-4">
             {metrics.map((host) => (
-              <div key={host.hostname} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg border border-transparent hover:border-border transition-colors cursor-pointer">
+              <div 
+                key={host.hostname} 
+                onClick={() => navigate(`/host/${host.hostname}`)}
+                className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg border border-transparent hover:border-accent hover:bg-secondary/50 transition-all cursor-pointer"
+              >
                 <div className="flex items-center gap-3">
                   <div className={`w-2 h-2 rounded-full ${host.status === 'online' ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
                   <div>
