@@ -1,0 +1,33 @@
+# =============================================================================
+# VisiMon Agent — Multi-stage Docker Build
+# Produces a tiny (<5MB) container image with the agent binary
+# =============================================================================
+
+# ---- Stage 1: Build ----
+FROM golang:1.22-alpine AS builder
+
+RUN apk add --no-cache git ca-certificates
+
+WORKDIR /src
+
+# Cache module downloads
+COPY agent/go.mod agent/go.sum ./
+RUN go mod download
+
+# Copy source and build a static binary
+COPY agent/ .
+RUN CGO_ENABLED=0 GOOS=linux \
+    go build -ldflags="-s -w -X main.version=$(git describe --tags --always 2>/dev/null || echo 'dev')" \
+    -o /visimon-agent ./cmd/visimon-agent/
+
+# ---- Stage 2: Runtime ----
+FROM scratch
+
+# TLS roots for HTTPS connections
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /visimon-agent /visimon-agent
+
+EXPOSE 9090
+
+ENTRYPOINT ["/visimon-agent"]
+CMD ["--config", "/etc/visimon/agent.yaml"]

@@ -1,0 +1,50 @@
+# =============================================================================
+# VisiMon — Production Docker Compose
+# For self-hosted production deployment
+# =============================================================================
+
+services:
+  # ---- VisiMon API Server ----
+  server:
+    image: visimon/server:latest
+    container_name: visimon-server
+    ports:
+      - "8080:8080"
+    volumes:
+      - visimon-data:/data
+      - ./server.yaml:/etc/visimon/server.yaml:ro
+    environment:
+      - VISIMON_DB_PATH=/data/visimon.db
+      - VISIMON_LOG_LEVEL=info
+    restart: always
+    networks:
+      - visimon-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ---- Optional: PostgreSQL for production (instead of SQLite) ----
+  postgres:
+    image: postgres:16-alpine
+    container_name: visimon-postgres
+    environment:
+      POSTGRES_DB: visimon
+      POSTGRES_USER: visimon
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: always
+    networks:
+      - visimon-net
+    profiles:
+      - with-postgres
+
+networks:
+  visimon-net:
+    driver: bridge
+
+volumes:
+  visimon-data:
+  postgres-data:

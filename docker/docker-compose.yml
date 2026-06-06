@@ -1,0 +1,77 @@
+# =============================================================================
+# VisiMon — Development Docker Compose
+# Starts agent + server + dashboard for local development
+# =============================================================================
+
+services:
+  # ---- VisiMon API Server ----
+  server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.server
+    container_name: visimon-server
+    ports:
+      - "8080:8080"
+    volumes:
+      - visimon-data:/data
+    environment:
+      - VISIMON_DB_PATH=/data/visimon.db
+      - VISIMON_LOG_LEVEL=debug
+    restart: unless-stopped
+    networks:
+      - visimon-net
+
+  # ---- VisiMon Agent (collects host metrics) ----
+  agent:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.agent
+    container_name: visimon-agent
+    depends_on:
+      - server
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    environment:
+      - VISIMON_SERVER_URL=http://server:8080
+      - VISIMON_HOSTNAME=dev-container
+      - VISIMON_INTERVAL=1
+    command:
+      [
+        "--server", "http://server:8080",
+        "--hostname", "dev-container",
+        "--interval", "1"
+      ]
+    pid: "host"
+    privileged: true
+    restart: unless-stopped
+    networks:
+      - visimon-net
+
+  # ---- VisiMon Dashboard (React + Vite) ----
+  dashboard:
+    build:
+      context: dashboard
+      dockerfile: Dockerfile.dev
+    container_name: visimon-dashboard
+    depends_on:
+      - server
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./dashboard/src:/app/src
+      - ./dashboard/package.json:/app/package.json
+    environment:
+      - VITE_API_URL=http://localhost:8080
+      - VITE_WS_URL=ws://localhost:8080
+    restart: unless-stopped
+    networks:
+      - visimon-net
+
+networks:
+  visimon-net:
+    driver: bridge
+
+volumes:
+  visimon-data:

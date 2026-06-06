@@ -1,0 +1,25 @@
+# Go binary
+agent/visimon-agent
+
+# Build output
+agent/vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Config (local)
+agent/visimon.yaml
+agent/visimon.yml
+
+# Logs
+*.log
+
+# Environment
+.env

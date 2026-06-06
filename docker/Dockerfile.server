@@ -1,0 +1,35 @@
+# =============================================================================
+# VisiMon API Server — Multi-stage Docker Build
+# =============================================================================
+
+# ---- Stage 1: Build ----
+FROM golang:1.22-alpine AS builder
+
+RUN apk add --no-cache git ca-certificates
+
+WORKDIR /src
+
+# If server code exists in the repo, build it; otherwise provide a placeholder
+COPY server/go.mod server/go.sum ./ 2>/dev/null || true
+RUN if [ -f go.mod ]; then go mod download; fi
+
+COPY server/ .
+RUN if [ -f ./cmd/visimon-server/main.go ]; then \
+        CGO_ENABLED=0 GOOS=linux \
+        go build -ldflags="-s -w" -o /visimon-server ./cmd/visimon-server/; \
+    else \
+        # Placeholder for when server code isn't ready yet
+        echo 'package main; func main() {}' > /main.go && \
+        go build -ldflags="-s -w" -o /visimon-server /main.go; \
+    fi
+
+# ---- Stage 2: Runtime ----
+FROM alpine:3.19
+
+RUN apk add --no-cache ca-certificates tzdata
+
+COPY --from=builder /visimon-server /visimon-server
+
+EXPOSE 8080
+
+ENTRYPOINT ["/visimon-server"]

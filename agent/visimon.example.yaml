@@ -1,0 +1,17 @@
+# VisiMon Agent Configuration
+# See https://visimon.dev/docs/agent-config for full documentation
+
+# URL of the VisiMon API server (required)
+server_url: "http://localhost:8080"
+
+# Collection and reporting interval in seconds (default: 1)
+interval: 1
+
+# Hostname to identify this agent (default: OS hostname)
+hostname: ""
+
+# API key for authenticating with the server (optional)
+api_key: ""
+
+# Log level: debug, info, warn, error (default: info)
+log_level: "info"
