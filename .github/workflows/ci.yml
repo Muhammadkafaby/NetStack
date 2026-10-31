@@ -54,21 +54,52 @@ jobs:
         working-directory: agent
         run: go test ./... -v -count=1 -race
 
-      - name: Run server tests (if exists)
-        working-directory: server
-        continue-on-error: true
-        run: |
-          if [ -d "cmd" ]; then
-            go test ./... -v -count=1 -race
-          else
-            echo "No server code yet, skipping tests"
-          fi
-
+      # NOTE: the server module is built and tested by the dedicated
+      # "Server Build & Test" job below, which pins its own Go version. It cannot
+      # run here: server/go.mod requires go 1.25 while env.GO_VERSION is 1.22, and
+      # this step used to swallow that toolchain error via continue-on-error.
       - name: Check Go mod tidy
         working-directory: agent
         run: |
           go mod tidy
           git diff --exit-code go.mod go.sum || (echo "go.mod/go.sum not tidied"; exit 1)
+
+  # ---- Build & test the server module ----
+  # The server has its own Go version requirement (server/go.mod requires
+  # go 1.25), so it gets its own job instead of sharing env.GO_VERSION.
+  server:
+    name: Server Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25" # keep in sync with the go directive in server/go.mod
+          cache: true
+          cache-dependency-path: server/go.sum
+
+      - name: Check gofmt
+        working-directory: server
+        run: |
+          UNFORMATTED=$(gofmt -l .)
+          if [ -n "$UNFORMATTED" ]; then
+            echo "These files are not gofmt-clean:"
+            echo "$UNFORMATTED"
+            exit 1
+          fi
+
+      - name: Go vet
+        working-directory: server
+        run: go vet ./...
+
+      - name: Go build
+        working-directory: server
+        run: go build ./...
+
+      - name: Go test
+        working-directory: server
+        run: go test ./... -count=1
 
   # ---- Build binaries for all platforms ----
   build:
@@ -92,7 +123,10 @@ jobs:
           GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} CGO_ENABLED=0 \
             go build -ldflags="-s -w" -o visimon-agent ./cmd/visimon-agent/
           mkdir -p dist
-          tar -czf "dist/visimon-agent_${{ github.ref_name }}_${{ matrix.os }}_${{ matrix.arch }}.tar.gz" visimon-agent
+          # github.ref_name is "feat/api-server" on PR branches: the "/" would be
+          # read as a directory separator by tar, so sanitize it first.
+          SAFE_REF="${GITHUB_REF_NAME//\//-}"
+          tar -czf "dist/visimon-agent_${SAFE_REF}_${{ matrix.os }}_${{ matrix.arch }}.tar.gz" visimon-agent
 
       - uses: actions/upload-artifact@v4
         with:
