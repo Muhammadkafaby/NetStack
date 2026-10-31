@@ -1,0 +1,14 @@
+# Keep the Docker build context small and free of local build output.
+.git
+.github
+.gitignore
+**/node_modules
+**/dist
+# Compiled binaries — never bake local artifacts into an image
+agent/visimon-agent
+server/visimon-server
+# Local state
+*.db
+*.db-journal
+*.log
+.env

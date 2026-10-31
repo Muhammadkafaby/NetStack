@@ -1,0 +1,110 @@
+# =============================================================================
+# VisiMon — GoReleaser Configuration
+# Automated release pipeline for the VisiMon agent
+# =============================================================================
+
+version: 2
+
+project_name: visimon-agent
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+
+builds:
+  - id: visimon-agent
+    dir: agent
+    main: ./cmd/visimon-agent/
+    binary: visimon-agent
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    goarm:
+      - 7
+    ignore:
+      - goos: darwin
+        goarch: arm64
+        goarm: 7
+
+archives:
+  - id: binary
+    format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+    files:
+      - none*
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+
+release:
+  github:
+    owner: Muhammadkafaby
+    name: NetStack
+  header: |
+    ## VisiMon Agent {{ .Version }}
+    
+    Lightweight system metrics collector. See the [README](README.md) for installation instructions.
+  footer: |
+    **Install via one-liner:**
+    ```
+    curl -fsSL https://visimon.dev/install.sh | sh
+    ```
+    
+    **Docker:**
+    ```
+    docker pull ghcr.io/muhammadkafaby/netstack/visimon-agent:{{ .Version }}
+    ```
+
+# Publish Docker images
+dockers:
+  - id: agent-docker
+    goos: linux
+    goarch: amd64
+    image_templates:
+      - "ghcr.io/muhammadkafaby/netstack/visimon-agent:{{ .Version }}"
+      - "ghcr.io/muhammadkafaby/netstack/visimon-agent:latest"
+    dockerfile: docker/Dockerfile.agent
+    build_flag_templates:
+      - "--pull"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.title=VisiMon Agent"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.source=https://github.com/Muhammadkafaby/NetStack"
+
+  - id: server-docker
+    goos: linux
+    goarch: amd64
+    image_templates:
+      - "ghcr.io/muhammadkafaby/netstack/visimon-server:{{ .Version }}"
+      - "ghcr.io/muhammadkafaby/netstack/visimon-server:latest"
+    dockerfile: docker/Dockerfile.server
+    build_flag_templates:
+      - "--pull"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.title=VisiMon Server"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.source=https://github.com/Muhammadkafaby/NetStack"

@@ -1,5 +1,6 @@
 # Go binary
 agent/visimon-agent
+server/visimon-server
 
 # Build output
 agent/vendor/

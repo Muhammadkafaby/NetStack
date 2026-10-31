@@ -1,35 +1,52 @@
 # =============================================================================
 # VisiMon API Server — Multi-stage Docker Build
 # =============================================================================
+# Build context is the repository root:
+#   docker build -f docker/Dockerfile.server -t visimon/server:latest .
+# =============================================================================
 
 # ---- Stage 1: Build ----
-FROM golang:1.22-alpine AS builder
+# Base image must be >= the `go` directive in server/go.mod (go 1.25.0),
+# otherwise the build stops with "go.mod requires go >= 1.25.0".
+FROM golang:1.25-alpine AS builder
 
-RUN apk add --no-cache git ca-certificates
+# Version stamped into the binary; override with --build-arg VERSION=v1.2.3
+ARG VERSION=dev
+
+RUN apk add --no-cache ca-certificates git
 
 WORKDIR /src
 
-# If server code exists in the repo, build it; otherwise provide a placeholder
-COPY server/go.mod server/go.sum ./ 2>/dev/null || true
-RUN if [ -f go.mod ]; then go mod download; fi
+# Cache module downloads in their own layer so source edits don't re-download
+COPY server/go.mod server/go.sum ./
+RUN go mod download
 
-COPY server/ .
-RUN if [ -f ./cmd/visimon-server/main.go ]; then \
-        CGO_ENABLED=0 GOOS=linux \
-        go build -ldflags="-s -w" -o /visimon-server ./cmd/visimon-server/; \
-    else \
-        # Placeholder for when server code isn't ready yet
-        echo 'package main; func main() {}' > /main.go && \
-        go build -ldflags="-s -w" -o /visimon-server /main.go; \
-    fi
+# Copy the server sources and build a fully static binary.
+# CGO is disabled: the SQLite driver (modernc.org/sqlite) is pure Go.
+COPY server/ ./
+RUN CGO_ENABLED=0 GOOS=linux go build \
+        -trimpath \
+        -ldflags="-s -w -X main.version=${VERSION}" \
+        -o /out/visimon-server ./cmd/visimon-server/
 
 # ---- Stage 2: Runtime ----
 FROM alpine:3.19
 
-RUN apk add --no-cache ca-certificates tzdata
+RUN apk add --no-cache ca-certificates tzdata \
+    && addgroup -S visimon \
+    && adduser -S -G visimon -h /data visimon \
+    && mkdir -p /data \
+    && chown -R visimon:visimon /data
 
-COPY --from=builder /visimon-server /visimon-server
+COPY --from=builder /out/visimon-server /usr/local/bin/visimon-server
+
+# SQLite database lives here; mount a volume to persist it.
+ENV VISIMON_DB_PATH=/data/visimon.db
+VOLUME ["/data"]
+
+USER visimon
+WORKDIR /data
 
 EXPOSE 8080
 
-ENTRYPOINT ["/visimon-server"]
+ENTRYPOINT ["/usr/local/bin/visimon-server"]
